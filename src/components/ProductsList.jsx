@@ -1,26 +1,63 @@
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import { deleteProduct, getAllProduct } from "../api/productApi";
+import { fetchProducts, removeProduct } from "../store/slices/productsSlice";
+import { addItem } from "../store/slices/cartSlice";
 
 export default function ProductsList() {
 
-    const [products, setProducts] = useState([])
-    const [error, setErrors] = useState({})
+    const dispatch = useDispatch();
+    const { products, isLoading, error } = useSelector((state) => state.products);
 
     useEffect(() => {
-        getAllProduct().then(response => {
-            setProducts(response.data)
-        }).catch(console.log)
-    }, [])
+        dispatch(fetchProducts());
+    }, [dispatch]);
 
-    const deleteHandler = (productId) => {
-        deleteProduct(productId).then(response => {
-            const filteredProducts = products.filter(product => product.id != productId)
-            setProducts(filteredProducts)
-        }).catch((e) => {
-            setErrors(e)
-        })
+    const deleteHandler = async (productId) => {
+        if (!window.confirm('Are you sure you want to delete this product?')) {
+            return;
+        }
+
+        try {
+            await dispatch(removeProduct(productId)).unwrap();
+        } catch (error) {
+            alert(`Failed to delete product: ${error}`);
+        }
+    };
+
+    const handleAddToCart = (product) => {
+        dispatch(addItem({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            image: product.image,
+        }));
+    };
+
+    if (isLoading) {
+        return (
+            <div className="text-center mt-5">
+                <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="alert alert-danger mt-4" role="alert">
+                <h4>Error Loading Products</h4>
+                <p>{error}</p>
+                <button 
+                    onClick={() => dispatch(fetchProducts())}
+                    className="btn btn-danger"
+                >
+                    Retry
+                </button>
+            </div>
+        );
     }
 
     return (
@@ -74,19 +111,28 @@ export default function ProductsList() {
                                     <p className="card-text">
                                         <strong>Rating:</strong> ⭐ {product.rate} / 5
                                     </p>
-                                    <div className="mt-auto d-flex justify-content-around pt-3 border-top">
-                                        <Link to={`${product.id}/edit`} className="text-decoration-none">
-                                            <i className="fs-4 text-info bi bi-pencil-square" title="Edit"></i>
-                                        </Link>
-                                        <Link to={`${product.id}`} className="text-decoration-none">
-                                            <i className="fs-4 text-warning bi bi-eye-fill" title="View"></i>
-                                        </Link>
-                                        <i
-                                            onClick={() => deleteHandler(product.id)}
-                                            className="fs-4 text-danger bi bi-trash-fill"
-                                            style={{ cursor: 'pointer' }}
-                                            title="Delete"
-                                        ></i>
+                                    <div className="mt-auto pt-3 border-top">
+                                        <button 
+                                            onClick={() => handleAddToCart(product)}
+                                            className="btn btn-primary w-100 mb-2"
+                                        >
+                                            <i className="bi bi-cart-plus me-2"></i>
+                                            Add to Cart
+                                        </button>
+                                        <div className="d-flex justify-content-around">
+                                            <Link to={`${product.id}/edit`} className="text-decoration-none">
+                                                <i className="fs-4 text-info bi bi-pencil-square" title="Edit"></i>
+                                            </Link>
+                                            <Link to={`${product.id}`} className="text-decoration-none">
+                                                <i className="fs-4 text-warning bi bi-eye-fill" title="View"></i>
+                                            </Link>
+                                            <i
+                                                onClick={() => deleteHandler(product.id)}
+                                                className="fs-4 text-danger bi bi-trash-fill"
+                                                style={{ cursor: 'pointer' }}
+                                                title="Delete"
+                                            ></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
